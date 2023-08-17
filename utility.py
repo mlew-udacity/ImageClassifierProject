@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models    
 from collections import OrderedDict
-from matplotlib import pyplot as plt
 import numpy as np
 from PIL import Image
 import json
@@ -14,7 +13,6 @@ import time
 
 #Function to load data
 def load_data(data_dir='flowers'):
-    
     train_dir = data_dir + '/train'
     valid_dir = data_dir + '/valid'
     test_dir = data_dir + '/test'
@@ -52,27 +50,25 @@ def load_data(data_dir='flowers'):
 
 
 #Classifer function to build layers attach to existing model eg VGG19
-def classifier(model, inputs, hidden,outputs):
+def classifier(model, inputs, hidden, outputs):
     for param in model.parameters():
         param.requires_grad = False
-
 
     #List of different operations and pass a tensor through sequentially
     classifier = nn.Sequential(OrderedDict([
                             ('fc1', nn.Linear(inputs, hidden)), #layer 1 
-                            ('relu', nn.ReLU()),
+                            ('relu1', nn.ReLU()),
                             ('dropout',nn.Dropout(0.5)),
-                            ('fc3',nn.Linear(hidden,outputs)),#output size = 102
+                            ('fc2', nn.Linear(hidden, outputs)), #output size = 102
                             ('output', nn.LogSoftmax(dim=1))]))# For using NLLLoss()
-    return classifier
     
-
+    return classifier
         
 #Save the checkpoint 
-def save_checkpoint(train_data, model, optimiser, filepath='checkpoint.pth', arch='vgg16', inputs=25088, hidden=4096, outputs=102, epochs=2, learn_rate=0.003):
+def save_checkpoint(train_data, model, optimiser, filepath='checkpoint.pth', arch='vgg16', inputs=25088, hidden=1096, outputs=102, epochs=3, learn_rate=0.001):
     model.class_to_idx = train_data.class_to_idx
     checkpoint = {'arch': arch,
-                  'hidden': hidden,                 
+                  'hidden': hidden,
                   'inputs': inputs,
                   'outputs': outputs,
                   'state_dict': model.state_dict(),
@@ -83,7 +79,7 @@ def save_checkpoint(train_data, model, optimiser, filepath='checkpoint.pth', arc
     torch.save(checkpoint, filepath)
 
 #Load saved checkpoint
-def load_checkpoint(filepath='checkpoint.pth'):
+def load_checkpoint(filepath='checkpoint.pth', device="cpu"):
     criterion = nn.NLLLoss()
     checkpoint = torch.load(filepath)
     
@@ -106,9 +102,7 @@ def load_checkpoint(filepath='checkpoint.pth'):
     #Load Optimiser
     optimiser = optim.Adam(model.classifier.parameters(), checkpoint['learning_rate'])      
     optimiser.load_state_dict(checkpoint['optimiser_state'])
-    epochs = checkpoint['epochs']
-    
-    return model, optimiser, criterion, epochs    
+    return model, optimiser    
  
 #Function to process image
 def process_image(image):
@@ -127,27 +121,6 @@ def process_image(image):
     image_process =  img_transform(img)
     return image_process
 
-# Function to show image
-def imshow(image, ax=None, title=None):
-    """Imshow for Tensor."""
-    if ax is None:
-        fig, ax = plt.subplots()
-    
-    # PyTorch tensors assume the color channel is the first dimension
-    # but matplotlib assumes is the third dimension
-    image = image.numpy().transpose((1, 2, 0))
-    
-    # Undo preprocessing
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-    image = std * image + mean
-    
-    # Image needs to be clipped between 0 and 1 or it looks like noise when displayed
-    image = np.clip(image, 0, 1)
-    
-    ax.imshow(image)
-    
-    return ax
 
 def load_labels(filepath='cat_to_name.json'):
     with open(filepath, 'r') as f:
